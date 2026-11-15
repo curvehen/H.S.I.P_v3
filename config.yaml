@@ -19,6 +19,14 @@ macro:
   ^TNX: US10Y
   000300.SS: 滬深300
   CNH=X: USD_CNH
+fred_series:
+  DGS10: US10Y_FRED
+  DFF: FedFunds
+  T10Y2Y: YieldCurve
+  CPIAUCSL: US_CPI
+  UNRATE: US_Unemployment
+  DGS3MO: US3M
+  BAMLH0A0HYM2: HY_Spread
 lookback: 30
 forecast_days: 5
 epochs: 80
