@@ -72,7 +72,12 @@ def main():
         for r in results:
             lv=calc_levels(r['last_price'], r['pred_1d_pct'], r['vol'], r['confidence']); r.update(lv)
             print(f"{r['name']}: 高 {lv['high']} 低 {lv['low']} 入場 {lv['entry']} 離場 {lv['exit']} 止蝕 {lv['stop']} -> {lv['signal']}")
-        send_email(results)
+        # 在 main() 入面, 你已經有 fred_sig 同 fred_text 嗰度
+        fred_text = ""
+        if 'fred_sig' in locals() and fred_sig:
+            fred_text = f"FRED: 美國10Y {fred_sig.get('US10Y_FRED','-')}%, Fed {fred_sig.get('FedFunds','-')}%, YieldCurve {fred_sig.get('YieldCurve','-')} ({fred_sig.get('YieldCurve_Signal','')}), CPI YoY {fred_sig.get('US_CPI_YoY',0):.2f}%, 失業率 {fred_sig.get('US_Unemployment','-')}%, HY {fred_sig.get('HY_Spread','-')} ({fred_sig.get('Credit_Stress','')})"
+        
+        send_email(results, backtest_summary="Backtest 見 output/backtest_result.csv", fred_sig=fred_sig if 'fred_sig' in locals() else None, fred_text=fred_text)
     except Exception as e: print(f"Email 失敗: {e}")
     hsi_res=[r for r in results if r['ticker']==cfg['hsi']][0]
     print(f"恒指 Factor: {hsi_res['factor']}")
