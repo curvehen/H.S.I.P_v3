@@ -201,7 +201,7 @@ def main():
     # ============ 7. Walk-Forward Backtest ============
     backtest_summary = ""
     try:
-        bt_df = walk_forward_backtest(prices, cfg['hsi'], initial=cfg.get('initial_capital', 100000))
+        bt_df = walk_forward_backtest(prices, cfg['hsi'], initial=cfg.get('initial_capital', 100000), fred_df=fred_df)
         if bt_df is not None and len(bt_df) > 0:
             # 計總回報, 俾 Email 用
             last_cap = bt_df['capital'].iloc[-1] if 'capital' in bt_df.columns else cfg.get('initial_capital', 100000)
