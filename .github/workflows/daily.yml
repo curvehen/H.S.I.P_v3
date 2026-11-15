@@ -1,0 +1,25 @@
+name: Daily HSI Predict
+on:
+  schedule:
+    - cron: '0 1 * * 1-5'
+  workflow_dispatch:
+jobs:
+  predict:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt -q
+      - run: python src/predict.py
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+      - run: |
+          git config --global user.name "HSI-Bot"
+          git config --global user.email "bot@github.com"
+          git add output/ || true
+          git commit -m "daily auto $(date +%Y-%m-%d)" || echo "no changes"
+          git push || echo "push failed"
