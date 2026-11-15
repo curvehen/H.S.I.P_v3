@@ -25,14 +25,19 @@ def build_email_html(results, backtest_summary=""):
         rows+=f'<tr style="background:{color}"><td><b>{r["name"]}</b><br><small>{r["ticker"]}</small></td><td>{r["last_price"]:.2f}</td><td>{lv["high"]:.2f}</td><td>{lv["low"]:.2f}</td><td>{lv["entry"]:.2f}</td><td>{lv["exit"]:.2f}</td><td>{lv["stop"]:.2f}</td><td>{r["pred_1d_pct"]:+.2f}%</td><td>{r["confidence"]*100:.0f}%</td><td>{r["vol"]:.2f}%</td><td><b>{lv["signal"]}</b></td></tr>'
     html=f'<html><body style="font-family:Arial"><h2>HSI V2 - {today}</h2><table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse; width:100%; text-align:center;"><tr style="background:#343a40;color:white;"><th>股票/指數</th><th>現價</th><th>預測高位</th><th>預測低位</th><th>入場位</th><th>離場位</th><th>止蝕位</th><th>預測</th><th>信心</th><th>波動</th><th>操作</th></tr>{rows}</table><p>{backtest_summary}</p><p style="color:#888;font-size:12px;">僅供研究, 非投資建議, 止蝕一定要執行</p></body></html>'
     return html
+# src/email_sender.py - replace send_email function only
 def send_email(results, backtest_summary=""):
-    user=os.getenv("EMAIL_USER"); pwd=os.getenv("EMAIL_PASS"); to=os.getenv("EMAIL_TO", user)
-    if not user or not pwd:
-        print("未設定 EMAIL_USER/PASS, 跳過 Email"); return False
+    user=os.getenv("EMAIL_USER"); pwd=os.getenv("EMAIL_PASS")
+    to_raw=os.getenv("EMAIL_TO", user)
+    # Support multiple recipients: "a@gmail.com, b@gmail.com, c@gmail.com"
+    # Also support ";" separator
+    to_list = [e.strip() for e in to_raw.replace(";", ",").split(",") if e.strip()]
+    if not user or not pwd or not to_list:
+        print("未設定 EMAIL_USER/PASS/TO, 跳過 Email"); return False
     today=datetime.now().strftime("%Y-%m-%d")
     hsi=[r for r in results if r['ticker']=='^HSI'][0] if any(r['ticker']=='^HSI' for r in results) else results[0]
     subject=f"HSI預測 {today} 恒指 {hsi['pred_1d_pct']:+.2f}% 信心 {hsi['confidence']*100:.0f}%"
-    msg=MIMEMultipart(); msg['From']=user; msg['To']=to; msg['Subject']=subject
+    msg=MIMEMultipart(); msg['From']=user; msg['To']=", ".join(to_list); msg['Subject']=subject
     msg.attach(MIMEText(build_email_html(results, backtest_summary), 'html', 'utf-8'))
     for p in ["output/hsi_forecast.png","output/stock_ranking.png"]:
         try:
@@ -41,7 +46,8 @@ def send_email(results, backtest_summary=""):
     try:
         ctx=ssl.create_default_context()
         with smtplib.SMTP_SSL("smtp.gmail.com",465,context=ctx) as s:
-            s.login(user,pwd); s.send_message(msg)
-        print(f"Email 已 Send 去 {to}"); return True
+            s.login(user,pwd)
+            s.send_message(msg, to_addrs=to_list)  # <- key change: send to list
+        print(f"Email 已 Send 去 {len(to_list)} 個人: {to_list}"); return True
     except Exception as e:
         print(f"Send Email 失敗: {e}"); return False
