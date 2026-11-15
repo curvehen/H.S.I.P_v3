@@ -1,0 +1,25 @@
+hsi: ^HSI
+top10:
+  0700.HK: 騰訊
+  9988.HK: 阿里
+  0005.HK: 滙豐
+  3690.HK: 美團
+  0939.HK: 建行
+  1810.HK: 小米
+  1299.HK: 友邦
+  0941.HK: 中移動
+  1398.HK: 工行
+  1211.HK: 比亞迪
+my_picks: {}
+macro:
+  ^GSPC: S&P500
+  ^IXIC: Nasdaq
+  ^VIX: VIX
+  DX-Y.NYB: DXY
+  ^TNX: US10Y
+  000300.SS: 滬深300
+  CNH=X: USD_CNH
+lookback: 30
+forecast_days: 5
+epochs: 80
+initial_capital: 100000
