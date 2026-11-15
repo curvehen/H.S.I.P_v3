@@ -13,9 +13,11 @@ from src.rl_agent import RLAgent
 from src.backtest import walk_forward_backtest
 from src.risk import RiskManager
 from src.plot import plot_all
-def train_one(ticker, prices, cfg, name_map):
+from src.fred_data import fetch_all_fred, fred_signals
+
+def train_one(ticker, prices, cfg, name_map, fred_df=None):
     try:
-        df = make_features(prices, ticker, cfg)
+        df = make_features(prices, ticker, cfg, fred_df=fred_df)
         feature_cols=[c for c in df.columns if c not in ['close','target_next']]
         train_df=df.iloc[:-20]; test_df=df.iloc[-20:]
         X_train=train_df[feature_cols].values; y_train=train_df['target_next'].values
@@ -38,12 +40,20 @@ def main():
     cfg = load_config(); name_map = get_name_map(cfg); tickers = get_all_tickers(cfg)
     log.info(f"啟動 V2 實戰版 | {len(tickers)} 隻")
     prices = fetch_all(tickers)
+    # FRED
+    fred_df = fetch_all_fred(cfg)
+    fred_sig = fred_signals(fred_df)
+    if fred_sig:
+        print(f"📊 FRED 宏觀: {fred_sig}")
+    else:
+        print("FRED 無數據, 只用 Yahoo")
+        
     os.makedirs("output", exist_ok=True)
     targets = [cfg['hsi']] + list(cfg['top10'].keys()) + list(cfg.get('my_picks',{}).keys())
     results=[]
     for t in targets:
         log.info(f"訓練 {name_map.get(t,t)} {t}...")
-        r=train_one(t, prices, cfg, name_map)
+        r=train_one(t, prices, cfg, name_map, fred_df=fred_df)
         if r: results.append(r); log.info(f"✓ {r['name']}: {r['pred_1d_pct']:+.2f}% 信心 {r['confidence']*100:.0f}%")
     if not results: log.error("全部失敗"); return
     rows=[{'股票':f"{r['name']} {r['ticker']}",'現價':round(r['last_price'],2),'預測聽日%':round(r['pred_1d_pct'],2),'預測5日%':round(r['pred_5d_pct'],2),'預測5日價':round(r['pred_5d_price'],2),'信心%':round(r['confidence']*100,1),'波動%':round(r['vol'],2),'Bayesian升%':round(r['prob_up'],1),'MC升%':round(r['mc_prob_up'],1),'RL最信':max(r['rl_weights'], key=r['rl_weights'].get)} for r in results]
