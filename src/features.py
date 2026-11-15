@@ -1,6 +1,7 @@
 # src/features.py
 import pandas as pd, numpy as np
-def make_features(prices_df, target, cfg):
+# src/features.py - update make_features to accept fred_df
+def make_features(prices_df, target, cfg, fred_df=None):
     df = pd.DataFrame(); s = prices_df[target]; df['close'] = s
     try: df['ret_1'] = s.pct_change(1); df['ret_5'] = s.pct_change(5); df['ret_20'] = s.pct_change(20)
     except: df['ret_1']=0; df['ret_5']=0; df['ret_20']=0
@@ -23,8 +24,51 @@ def make_features(prices_df, target, cfg):
     if '000300.SS' in prices_df.columns: df['a_share']=prices_df['000300.SS'].pct_change(1)
     if '^VIX' in prices_df.columns: df['vix']=prices_df['^VIX']; df['vix_chg']=prices_df['^VIX'].pct_change(1)
     if 'DX-Y.NYB' in prices_df.columns: df['dxy_chg']=prices_df['DX-Y.NYB'].pct_change(1)
+    # --- NEW: FRED features ---
+    if fred_df is not None and not fred_df.empty:
+        # Align FRED dates with price dates
+        fred_aligned = fred_df.reindex(df.index, method='ffill')
+        if 'US10Y_FRED' in fred_aligned.columns:
+            df['fred_us10y'] = fred_aligned['US10Y_FRED']
+            df['fred_us10y_chg'] = fred_aligned['US10Y_FRED'].diff()
+        if 'YieldCurve' in fred_aligned.columns:
+            df['fred_yieldcurve'] = fred_aligned['YieldCurve']
+        if 'FedFunds' in fred_aligned.columns:
+            df['fred_fedfunds'] = fred_aligned['FedFunds']
+        if 'US_CPI' in fred_aligned.columns:
+            df['fred_cpi_chg'] = fred_aligned['US_CPI'].pct_change(30)
+        if 'US_Unemployment' in fred_aligned.columns:
+            df['fred_unrate'] = fred_aligned['US_Unemployment']
+            df['fred_unrate_chg'] = fred_aligned['US_Unemployment'].diff(30)
+        if 'HY_Spread' in fred_aligned.columns:
+            df['fred_hy'] = fred_aligned['HY_Spread']
+            df['fred_hy_chg'] = fred_aligned['HY_Spread'].diff(5)
     df['target_next']=s.pct_change(1).shift(-1)
     return df.dropna()
+
+def factor_explain(last_row):
+    f={}
+    try: f['美股 S&P']=float(last_row.get('us_sp',0)*0.35)
+    except: f['美股 S&P']=0
+    try: f['A股']=float(last_row.get('a_share',0)*0.25)
+    except: f['A股']=0
+    try: f['VIX']=float(-last_row.get('vix_chg',0)*0.20)
+    except: f['VIX']=0
+    try: f['美元 DXY']=float(-last_row.get('dxy_chg',0)*0.30)
+    except: f['美元 DXY']=0
+    try: f['技術 RSI']=float((last_row.get('rsi',50)-50)/1000)
+    except: f['技術 RSI']=0
+    # FRED factor
+    try:
+        if 'fred_us10y_chg' in last_row:
+            f['美國10Y利率變化']=float(-last_row.get('fred_us10y_chg',0)*0.5)
+        if 'fred_yieldcurve' in last_row:
+            yc = float(last_row.get('fred_yieldcurve',0))
+            f['收益率曲線']= -0.02 if yc < 0 else 0.01
+        if 'fred_hy_chg' in last_row:
+            f['信用利差']=float(-last_row.get('fred_hy_chg',0)*0.2)
+    except: pass
+    return f
 def factor_explain(last_row):
     f={}
     try: f['美股 S&P']=float(last_row.get('us_sp',0)*0.35)
