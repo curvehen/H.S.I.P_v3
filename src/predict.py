@@ -83,10 +83,11 @@ def train_one(ticker, prices, cfg, name_map, fred_df=None, use_deep=True):
         # 0700 學出嚟嘅權重同 1810 唔同, 保留獨特性
         # RL 入面都有隨機, 要鎖埋
         set_seed_for_ticker(ticker)
-        rl = RLAgent(list(preds.keys()))
-        rl_w = rl.learn(maes)
 
-        weighted = float(sum(preds[k] * rl_w[k] for k in preds))
+        # 新版 - 用 MAE 倒數加權, 唔用 RL, 唔會 Overfit
+        from src.models import ensemble_weighted
+        weighted, rl_w = ensemble_weighted(preds, maes, max_weight=0.30)
+        # rl_w 呢個名保留, 等下面 Print 唔會爆, 但其實已經係 MAE 權重, 唔係 RL
 
         # GARCH + Bayesian + Monte Carlo - 都用返呢隻嘅 Seed
         set_seed_for_ticker(ticker)
